@@ -40,6 +40,8 @@ public:
 	virtual void Update(float dt, int lim, MyBus& strip) = 0;
 };
 
+RgbColor black(0,0,0);
+
 // structure to 'walk' a color on the strip...
 class Walker : public AnimatedObject
 {
@@ -68,8 +70,19 @@ public:
 			_accumulatedTime -= (_speed * steps); 
 			_position += steps;
 			_position %= lim;
+			
+			for (int i = 0; i < _length; ++i)
+			{
+				int idx = (_position - i + lim) % lim;
+				RgbColor curColor = strip.GetPixelColor(idx);
+				RgbColor newColor = RgbColor::BilinearBlend(
+					curColor, 
+					curColor, 
+					black, 
+					_color, 0.5f, (float)i/(float)(_length-1));
+				strip.SetPixelColor(idx, newColor);
+			}
 		}
-		strip.SetPixelColor(_position, _color);
 	}
 };
 
