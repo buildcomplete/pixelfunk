@@ -1,23 +1,12 @@
-// DotStarTest
-// This example will cycle between showing four pixels as Red, Green, Blue, White
-// and then showing those pixels as Black.
-//
-// There is serial output of the current state so you can confirm and follow along
-//
-
 #include <Arduino.h>
 #include <NeoPixelBus.h>
 
-
-const uint16_t PixelCount = 50; // this example assumes 4 pixels, making it smaller will cause a failure
+const uint16_t PixelCount = 50; 
 
 // make sure to set this to the correct pins
-//const uint8_t DotClockPin = 2;
-const uint8_t DotDataPin = 2;  
-
+const uint8_t DotDataPin = 2;
 #define colorSaturation 128
 
-// for software bit bang
 NeoPixelBus<NeoBrgFeature, NeoEspBitBangMethodBase<NeoEspBitBangSpeed400Kbps>> strip(PixelCount, DotDataPin);
 
 RgbColor RgbColorF(float r, float g, float b)
@@ -43,23 +32,67 @@ void setup()
     Serial.println("Running...");
 }
 
+// structure to 'walk' a color on the strip...
+struct Walker
+{
+public:
+
+	int _position;
+	float _speed;
+	float _accumulatedTime;
+	RgbColor _color;
+
+	Walker(int position, float speed, RgbColor color)
+	{
+		_position = position;
+		_speed = speed;
+		_accumulatedTime = 0;
+		_color = color;
+	}
+	
+	void Update(float dt, int lim)
+	{
+		_accumulatedTime += dt;
+		int steps = _accumulatedTime / _speed;
+		if (steps != 0)
+		{
+			_accumulatedTime -= (_speed * steps); 
+			_position += steps;
+			_position %= lim;
+		}
+	}
+};
+
+float currentTime = 0;
+float delta;
+void updateTimers()
+{
+	float time = (float)millis() / 1000.0f;
+    delta = time - currentTime;
+    currentTime = time;
+}
+
+// create 4 walkers...
+Walker mrBlue(0, 0.166f, RgbColorF(0,0,1));
+Walker mrGreen(1, 0.100f, RgbColorF(0,1,0));
+Walker mrRed(2, 0.200f, RgbColorF(1,0,0));
+Walker mrYellow(3, 0.400f, RgbColorF(1,1,0));
+
 void loop()
 {
-
-    //delay(100);
-    
-	float time = (float)millis() / 1000.0f;
-    float power = sin(time);
-	if (power < 0 )
-	{
-		power = -power;
-    }
-
-	for (int i=0;i<PixelCount;++i)
-	{
-		// set the colors, 
-		strip.SetPixelColor(i, RgbColorF(power, 1-power, power));
-    }
-        
+	updateTimers();
+	
+	// update the walker position
+	mrBlue.Update(delta, PixelCount);
+	mrGreen.Update(delta, PixelCount);
+	mrRed.Update(delta, PixelCount);
+	mrYellow.Update(delta, PixelCount);
+	
+	// draw the walker
+	strip.SetPixelColor(mrBlue._position, mrBlue._color);
+	strip.SetPixelColor(mrGreen._position, mrGreen._color);
+	strip.SetPixelColor(mrRed._position, mrRed._color);
+	strip.SetPixelColor(mrYellow._position, mrYellow._color);
+	
     strip.Show();
 }	
