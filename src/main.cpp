@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <NeoPixelBus.h>
+#include "SerialCommands.h"
 
 const uint16_t PixelCount = 50; 
 
@@ -12,27 +13,65 @@ using MyBus = NeoPixelBus<NeoBrgFeature, NeoEspBitBangMethodBase<NeoEspBitBangSp
 
 MyBus strip(PixelCount, DotDataPin);
 
+char serial_command_buffer_[32];
+SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_command_buffer_), "\r\n", " ");
+
+//This is the default handler, and gets called when no other command matches. 
+void cmd_unrecognized(SerialCommands* sender, const char* cmd)
+{
+	sender->GetSerial()->print("Unrecognized command [");
+	sender->GetSerial()->print(cmd);
+	sender->GetSerial()->println("]");
+}
+
 RgbColor RgbColorF(float r, float g, float b)
 {
 	return RgbColor(r*colorSaturation, g*colorSaturation, b*colorSaturation);
 }
 
+//First parameter pwm value is required
+//Optional parameters: led colors
+//e.g. LED 128 red
+//     LED 128 red blue
+//     LED 0 red blue green
+void cmdRgbLed_cb(SerialCommands* sender)
+{
+	//Note: Every call to Next moves the pointer to next parameter
+	char* idStr = sender->Next();
+	char* rStr = sender->Next();
+	char* gStr = sender->Next();
+	char* bStr = sender->Next();
+	if (   idStr == NULL 
+		|| rStr == NULL
+		|| gStr == NULL
+		|| bStr == NULL )
+	{
+		sender->GetSerial()->println("no index: format [LED idx r g b], ex: LED 1 1.0 0.0 0.0 ");
+		return;
+	}
+	int id = atoi(idStr);
+	float r = atof(rStr);
+	float g = atof(gStr);
+	float b = atof(bStr);
+	
+	strip.SetPixelColor(id, RgbColorF(r,g,b));
+}
+
+SerialCommand cmdRgbLed("LED", cmdRgbLed_cb);
+
 void setup()
 {
     Serial.begin(115200);
     while (!Serial); // wait for serial attach
-
-    Serial.println();
-    Serial.println("Initializing...");
-    Serial.flush();
+	serial_commands_.SetDefaultHandler(&cmd_unrecognized);
+    serial_commands_.AddCommand(&cmdRgbLed);
+	
 
     // this resets all the neopixels to an off state
     strip.Begin();
     strip.ClearTo(RgbColorF(0,0,0));
     strip.Show();
 
-    Serial.println();
-    Serial.println("Running...");
 }
 class AnimatedObject
 {
@@ -78,8 +117,8 @@ public:
 				RgbColor newColor = RgbColor::BilinearBlend(
 					curColor, 
 					curColor, 
-					black, 
-					_color, 0.5f, (float)i/(float)(_length-1));
+					_color, 
+					black, 0.5f, (float)i/(float)(_length-1));
 				strip.SetPixelColor(idx, newColor);
 			}
 		}
@@ -97,9 +136,9 @@ void updateTimers()
 
 // create 4 walkers...
 Walker mrBlue(0, 5, 0.166f, RgbColorF(0,0,1));
-Walker mrGreen(1, 5, 0.100f, RgbColorF(0,1,0));
-Walker mrRed(2, 5, 0.200f, RgbColorF(1,0,0));
-Walker mrYellow(3, 5, 0.400f, RgbColorF(1,1,0));
+Walker mrGreen(1, 4, 0.100f, RgbColorF(0,1,0));
+Walker mrRed(2, 6, 0.200f, RgbColorF(1,0,0));
+Walker mrYellow(3, 10, 0.400f, RgbColorF(1,1,0));
 
 AnimatedObject* animatedObjects[] 
 {
@@ -110,13 +149,13 @@ AnimatedObject* animatedObjects[]
 };
 void loop()
 {
-	updateTimers();
+	//~ updateTimers();
 	
 	// update and draw animated objects
-	for (int i=0;i<4;++i)
-	{
-		animatedObjects[i]->Update(delta, PixelCount, strip);
-	}
-	
+	//~ for (int i=0;i<4;++i)
+	//~ {
+		//~ animatedObjects[i]->Update(delta, PixelCount, strip);
+	//~ }
+	serial_commands_.ReadSerial();
     strip.Show();
 }	
