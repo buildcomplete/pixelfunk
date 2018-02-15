@@ -29,12 +29,7 @@ RgbColor RgbColorF(float r, float g, float b)
 	return RgbColor(r*colorSaturation, g*colorSaturation, b*colorSaturation);
 }
 
-//First parameter pwm value is required
-//Optional parameters: led colors
-//e.g. LED 128 red
-//     LED 128 red blue
-//     LED 0 red blue green
-void cmdRgbLed_cb(SerialCommands* sender)
+void cmdRgbFLed_cb(SerialCommands* sender)
 {
 	//Note: Every call to Next moves the pointer to next parameter
 	char* idStr = sender->Next();
@@ -46,7 +41,7 @@ void cmdRgbLed_cb(SerialCommands* sender)
 		|| gStr == NULL
 		|| bStr == NULL )
 	{
-		sender->GetSerial()->println("no index: format [LED idx r g b], ex: LED 1 1.0 0.0 0.0 ");
+		sender->GetSerial()->println("no index: format [LEDF idx r g b], ex: LED 1 1.0 0.0 0.0 ");
 		return;
 	}
 	int id = atoi(idStr);
@@ -57,14 +52,35 @@ void cmdRgbLed_cb(SerialCommands* sender)
 	strip.SetPixelColor(id, RgbColorF(r,g,b));
 }
 
-SerialCommand cmdRgbLed("LED", cmdRgbLed_cb);
+void cmdRgbAllLed_cb(SerialCommands* sender)
+{
+	//Note: Every call to Next moves the pointer to next parameter
+	char* rStr = sender->Next();
+	char* gStr = sender->Next();
+	char* bStr = sender->Next();
+	if (   rStr == NULL
+		|| gStr == NULL
+		|| bStr == NULL )
+	{
+		sender->GetSerial()->println("format [ALL r g b], ex: LED 1 1.0 0.0 0.0 ");
+		return;
+	}
+	int r = atoi(rStr);
+	int g = atoi(gStr);
+	int b = atoi(bStr);
+	strip.ClearTo(RgbColor(r,g,b));
+}
+
+SerialCommand cmdRgbFLed("LEDF", cmdRgbFLed_cb);
+SerialCommand cmdRgbAllLed("ALL", cmdRgbAllLed_cb);
 
 void setup()
 {
     Serial.begin(115200);
     while (!Serial); // wait for serial attach
 	serial_commands_.SetDefaultHandler(&cmd_unrecognized);
-    serial_commands_.AddCommand(&cmdRgbLed);
+    serial_commands_.AddCommand(&cmdRgbFLed);
+	serial_commands_.AddCommand(&cmdRgbAllLed);
 	
 
     // this resets all the neopixels to an off state
