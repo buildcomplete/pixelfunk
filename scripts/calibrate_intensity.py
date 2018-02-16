@@ -29,12 +29,18 @@ def getColour(v, vmin, vmax):
     return c
 
 
-count = 20000 
+count = 2000
+scl = 150
+while True:
+    for i in range(0,count):
+        c = getColour(float(i), float(0), float(count))
+        cmd = 'ALL %d %d %d\r\n' % ( int(c[0]*scl), int(c[1]*scl), int(c[2]*scl) )
+        #print(cmd)
+        ser.write(cmd)
 
-for i in range(0,count):
-    c = getColour(float(i), float(0), float(count))
-    cmd = 'ALL %d %d %d\r\n' % ( int(c[0]*255), int(c[1]*255), int(c[2]*255) )
-    #print(cmd)
-    ser.write(cmd)
+    for i in reversed(range(0, count)):
+        c = getColour(float(i), float(0), float(count))
+        cmd = 'ALL %d %d %d\r\n' % ( int(c[0]*scl), int(c[1]*scl), int(c[2]*scl) )
+        ser.write(cmd) 
 
 ser.close()
