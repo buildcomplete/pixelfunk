@@ -15,6 +15,7 @@ MyBus strip(PixelCount, DotDataPin);
 
 char serial_command_buffer_[32];
 SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_command_buffer_), "\r\n", " ");
+bool runAnimation = false;
 
 //This is the default handler, and gets called when no other command matches. 
 void cmd_unrecognized(SerialCommands* sender, const char* cmd)
@@ -52,6 +53,18 @@ void cmdRgbFLed_cb(SerialCommands* sender)
 	strip.SetPixelColor(id, RgbColorF(r,g,b));
 }
 
+void cmdSetAnimationstate_cb(SerialCommands* sender)
+{
+	char* onOff = sender->Next();
+	if (onOff == NULL)
+	{
+		sender->GetSerial()->println("format: ANIM On/Off ");
+		return;
+	}
+	
+	runAnimation = (strcmp(onOff, "On") == 0);
+}
+
 void cmdRgbAllLed_cb(SerialCommands* sender)
 {
 	//Note: Every call to Next moves the pointer to next parameter
@@ -73,14 +86,17 @@ void cmdRgbAllLed_cb(SerialCommands* sender)
 
 SerialCommand cmdRgbFLed("LEDF", cmdRgbFLed_cb);
 SerialCommand cmdRgbAllLed("ALL", cmdRgbAllLed_cb);
+SerialCommand cmdSetAnimstate("ANIM", cmdSetAnimationstate_cb);
 
 void setup()
 {
     Serial.begin(115200);
     while (!Serial); // wait for serial attach
+	
 	serial_commands_.SetDefaultHandler(&cmd_unrecognized);
     serial_commands_.AddCommand(&cmdRgbFLed);
 	serial_commands_.AddCommand(&cmdRgbAllLed);
+	serial_commands_.AddCommand(&cmdSetAnimstate);
 	
 
     // this resets all the neopixels to an off state
@@ -165,13 +181,16 @@ AnimatedObject* animatedObjects[]
 };
 void loop()
 {
-	//~ updateTimers();
 	
-	// update and draw animated objects
-	//~ for (int i=0;i<4;++i)
-	//~ {
-		//~ animatedObjects[i]->Update(delta, PixelCount, strip);
-	//~ }
+	updateTimers();
+	if (runAnimation)
+	{
+		// update and draw animated objects
+		for (int i=0;i<4;++i)
+		{
+			animatedObjects[i]->Update(delta, PixelCount, strip);
+		}
+	}
 	serial_commands_.ReadSerial();
     strip.Show();
 }	
