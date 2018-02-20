@@ -1,15 +1,14 @@
 #include <Arduino.h>
 #include <NeoPixelBus.h>
 #include "SerialCommands.h"
+#include "AnimatedObject.h"
+#include "Walker.h"
+#include "configuration.h"
 
 const uint16_t PixelCount = 50; 
 
 // make sure to set this to the correct pins
 const uint8_t DotDataPin = 2;
-#define colorSaturation 128
-
-// define type for the bus we are using
-using MyBus = NeoPixelBus<NeoBrgFeature, NeoEspBitBangMethodBase<NeoEspBitBangSpeed400Kbps>>;
 
 MyBus strip(PixelCount, DotDataPin);
 
@@ -103,59 +102,7 @@ void setup()
     strip.Begin();
     strip.ClearTo(RgbColorF(0,0,0));
     strip.Show();
-
 }
-class AnimatedObject
-{
-public:
-	virtual void Update(float dt, int lim, MyBus& strip) = 0;
-};
-
-RgbColor black(0,0,0);
-
-// structure to 'walk' a color on the strip...
-class Walker : public AnimatedObject
-{
-	int _position;
-	int _length;
-	float _speed;
-	float _accumulatedTime;
-	RgbColor _color;
-
-public:
-	Walker(int position, int length, float speed, RgbColor color)
-	{
-		_position = position;
-		_length = length;
-		_speed = speed;
-		_accumulatedTime = 0;
-		_color = color;
-	}
-	
-	void Update(float dt, int lim, MyBus& strip)
-	{
-		_accumulatedTime += dt;
-		int steps = _accumulatedTime / _speed;
-		if (steps != 0)
-		{
-			_accumulatedTime -= (_speed * steps); 
-			_position += steps;
-			_position %= lim;
-			
-			for (int i = 0; i < _length; ++i)
-			{
-				int idx = (_position - i + lim) % lim;
-				RgbColor curColor = strip.GetPixelColor(idx);
-				RgbColor newColor = RgbColor::BilinearBlend(
-					curColor, 
-					curColor, 
-					_color, 
-					black, 0.5f, (float)i/(float)(_length-1));
-				strip.SetPixelColor(idx, newColor);
-			}
-		}
-	}
-};
 
 float currentTime = 0;
 float delta;
