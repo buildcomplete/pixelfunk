@@ -4,6 +4,9 @@
 #include "AnimatedObject.h"
 #include "Walker.h"
 #include "configuration.h"
+#include <ESP8266WiFi.h>
+#include <aREST.h>
+#include "wifisecret.h"
 
 const uint16_t PixelCount = 50; 
 
@@ -15,6 +18,17 @@ MyBus strip(PixelCount, DotDataPin);
 char serial_command_buffer_[32];
 SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_command_buffer_), "\r\n", " ");
 bool runAnimation = false;
+
+aREST rest = aREST();
+#define LISTEN_PORT 80
+
+WiFiServer server(LISTEN_PORT);
+
+int toggleLeds(String command)
+{
+	strip.ClearTo(RgbColor(255,255,255));
+	return 1;
+}
 
 //This is the default handler, and gets called when no other command matches. 
 void cmd_unrecognized(SerialCommands* sender, const char* cmd)
@@ -92,6 +106,25 @@ void setup()
     Serial.begin(115200);
     while (!Serial); // wait for serial attach
 	
+	rest.function("led", toggleLeds);
+	
+	rest.set_id("1");
+	rest.set_name("lightserver");
+	
+	WiFi.begin(WIFI_SSID,WIFI_PASS);
+	while (WiFi.status() != WL_CONNECTED)
+	{
+		delay(500);
+		Serial.print(".");
+	}
+	Serial.println("");
+	Serial.println("WiFi connected");
+	
+	server.begin();
+	Serial.println("Server started");
+	
+	Serial.println(WiFi.localIP());
+	
 	serial_commands_.SetDefaultHandler(&cmd_unrecognized);
     serial_commands_.AddCommand(&cmdRgbFLed);
 	serial_commands_.AddCommand(&cmdRgbAllLed);
@@ -128,6 +161,15 @@ AnimatedObject* animatedObjects[]
 };
 void loop()
 {
+	WiFiClient client = server.available();
+	if (client )
+	{
+		while (!client.available())
+		{
+			delay(1);
+		}
+		rest.handle(client);
+	}
 	
 	updateTimers();
 	if (runAnimation)
