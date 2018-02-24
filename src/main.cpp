@@ -1,12 +1,19 @@
 #include <Arduino.h>
-#include <NeoPixelBus.h>
+#include "configuration.h"
+
 #include "SerialCommands.h"
+
+#include <NeoPixelBus.h>
 #include "AnimatedObject.h"
 #include "Walker.h"
-#include "configuration.h"
+#include "PixelNoise.h"
+
 #include <ESP8266WiFi.h>
 #include <aREST.h>
+
 #include "wifisecret.h"
+
+#include <RunningAverage.h>
 
 const uint16_t PixelCount = 50; 
 
@@ -65,6 +72,28 @@ void cmdRgbFLed_cb(SerialCommands* sender)
 	
 	strip.SetPixelColor(id, RgbColorF(r,g,b));
 }
+void cmdRgbLed_cb(SerialCommands* sender)
+{
+	//Note: Every call to Next moves the pointer to next parameter
+	char* idStr = sender->Next();
+	char* rStr = sender->Next();
+	char* gStr = sender->Next();
+	char* bStr = sender->Next();
+	if (   idStr == NULL 
+		|| rStr == NULL
+		|| gStr == NULL
+		|| bStr == NULL )
+	{
+		sender->GetSerial()->println("no index: format [LEDF idx r g b], ex: LED 1 1.0 0.0 0.0 ");
+		return;
+	}
+	int id = atoi(idStr);
+	int r = atoi(rStr);
+	int g = atoi(gStr);
+	int b = atoi(bStr);
+	
+	strip.SetPixelColor(id, RgbColor(r,g,b));
+}
 
 void cmdSetAnimationstate_cb(SerialCommands* sender)
 {
@@ -97,9 +126,23 @@ void cmdRgbAllLed_cb(SerialCommands* sender)
 	strip.ClearTo(RgbColor(r,g,b));
 }
 
-SerialCommand cmdRgbFLed("LEDF", cmdRgbFLed_cb);
-SerialCommand cmdRgbAllLed("ALL", cmdRgbAllLed_cb);
-SerialCommand cmdSetAnimstate("ANIM", cmdSetAnimationstate_cb);
+void cmdGetIP_cb(SerialCommands* sender)
+{
+	sender->GetSerial()->println(WiFi.localIP());
+}
+
+SerialCommand* _commands[] = 
+{
+	new SerialCommand("LEDF", cmdRgbFLed_cb),
+	new SerialCommand("LED", cmdRgbFLed_cb),
+	new SerialCommand("ALL", cmdRgbAllLed_cb),
+	new SerialCommand("ANIM", cmdSetAnimationstate_cb),
+	new SerialCommand("IP", cmdGetIP_cb),
+};
+const int nCommands  = 5;
+
+RunningAverage myRA(10);
+float averageCycleDelay = 0;
 
 void setup()
 {
@@ -107,6 +150,8 @@ void setup()
     while (!Serial); // wait for serial attach
 	
 	rest.function("led", toggleLeds);
+	rest.variable("Average cycle delay", &averageCycleDelay);
+	rest.variable("Animations running", &runAnimation);
 	
 	rest.set_id("1");
 	rest.set_name("lightserver");
@@ -126,10 +171,10 @@ void setup()
 	Serial.println(WiFi.localIP());
 	
 	serial_commands_.SetDefaultHandler(&cmd_unrecognized);
-    serial_commands_.AddCommand(&cmdRgbFLed);
-	serial_commands_.AddCommand(&cmdRgbAllLed);
-	serial_commands_.AddCommand(&cmdSetAnimstate);
-	
+    for (int i=0;i<nCommands;++i)
+	{
+		serial_commands_.AddCommand(_commands[i]);
+	}
 
     // this resets all the neopixels to an off state
     strip.Begin();
@@ -147,20 +192,35 @@ void updateTimers()
 }
 
 // create 4 walkers...
-Walker mrBlue(0, 5, 0.166f, RgbColorF(0,0,1));
-Walker mrGreen(1, 4, 0.100f, RgbColorF(0,1,0));
-Walker mrRed(2, 6, 0.200f, RgbColorF(1,0,0));
-Walker mrYellow(3, 10, 0.400f, RgbColorF(1,1,0));
+//~ Walker mrBlue(0, 5, 0.166f, RgbColorF(0,0,1));
+//~ Walker mrGreen(1, 4, 0.100f, RgbColorF(0,1,0));
+//~ Walker mrRed(2, 6, 0.200f, RgbColorF(1,0,0));
+//~ Walker mrYellow(3, 10, 0.400f, RgbColorF(1,1,0));
 
-AnimatedObject* animatedObjects[] 
-{
-	&mrBlue,
-	&mrGreen,
-	&mrRed,
-	&mrYellow
-};
+//~ AnimatedObject* animatedObjects[] 
+//~ {
+	//~ &mrBlue,
+	//~ &mrGreen,
+	//~ &mrRed,
+	//~ &mrYellow
+//~ };
+
+AnimatedObject** animatedObjects = NULL;
+const int nObjects = 50;
+
+int updateVarDelay = 50;
+int varCount = 0;
+
 void loop()
 {
+	if (animatedObjects == NULL)
+	{
+		
+		animatedObjects = new AnimatedObject*[nObjects];
+		for (int i=0;i<nObjects; ++i)
+			animatedObjects[i] = new PixelNoise(i, 0.2, RgbColor(50,50,50));
+	}
+	
 	WiFiClient client = server.available();
 	if (client )
 	{
@@ -172,10 +232,22 @@ void loop()
 	}
 	
 	updateTimers();
+	myRA.addValue(delta);
+	if (varCount == updateVarDelay)
+	{
+		varCount=0;
+		averageCycleDelay = myRA.getFastAverage();
+	}
+	else
+	{
+		++varCount;
+	}
+	
+	
 	if (runAnimation)
 	{
 		// update and draw animated objects
-		for (int i=0;i<4;++i)
+		for (int i=0;i<nObjects;++i)
 		{
 			animatedObjects[i]->Update(delta, PixelCount, strip);
 		}
