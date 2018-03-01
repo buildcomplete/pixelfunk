@@ -9,7 +9,7 @@ Walker::Walker(int position, int length, float speed, RgbColor color)
 	_accumulatedTime = 0;
 	_color = color;
 }
-	
+
 void Walker::Update(float dt, int lim, MyBus& strip )
 {
 	_accumulatedTime += dt;
