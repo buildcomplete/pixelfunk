@@ -15,7 +15,7 @@
 
 #include <RunningAverage.h>
 
-const uint16_t PixelCount = 50; 
+const uint16_t PixelCount = 512; 
 
 // make sure to set this to the correct pins
 const uint8_t DotDataPin = 2;
@@ -24,10 +24,45 @@ MyBus strip(PixelCount, DotDataPin);
 
 char serial_command_buffer_[32];
 SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_command_buffer_), "\r\n", " ");
-bool runAnimation = false;
+bool runAnimation = true;
 
 aREST rest = aREST();
 #define LISTEN_PORT 80
+
+
+
+RgbColor GetJetColour(float v, float vmin, float vmax, float maxColor)
+{
+	if (v < vmin)
+		v = vmin;
+	if (v > vmax)
+		v = vmax;
+
+	double dv = vmax - vmin;
+
+	if (v < (vmin + 0.25 * dv))
+		return RgbColor(
+			0, 
+			(int)(maxColor * (4 * (v - vmin) / dv)),
+			(int)maxColor);
+
+	if (v < (vmin + 0.5 * dv))
+		return RgbColor(
+			0,
+			(int)maxColor,
+			(int)(maxColor * (1 + 4 * (vmin + 0.25 * dv - v) / dv)));
+
+	if (v < (vmin + 0.75 * dv))
+		return RgbColor(
+			(int)(maxColor * (4 * (v - vmin - 0.5 * dv) / dv)),
+			(int)maxColor,
+			0);
+	
+	return RgbColor(
+		(int)maxColor,
+		(int)(maxColor * (1 + 4 * (vmin + 0.75 * dv - v) / dv)),
+		0);
+}
 
 WiFiServer server(LISTEN_PORT);
 
@@ -192,10 +227,11 @@ void updateTimers()
 }
 
 AnimatedObject** animatedObjects = NULL;
-const int nObjects = 50;
+const int nObjects = 256;
 
 int updateVarDelay = 50;
 int varCount = 0;
+NeoGamma<NeoGammaEquationMethod> colorGamma;
 
 void loop()
 {
@@ -203,8 +239,14 @@ void loop()
 	{
 		
 		animatedObjects = new AnimatedObject*[nObjects];
-		for (int i=0;i<nObjects; ++i)
-			animatedObjects[i] = new PixelNoise(i, 0.2, RgbColor(50,50,50));
+		//~ for (int i=0;i<nObjects; ++i)
+			//~ animatedObjects[i] = new PixelNoise(i, 0.2, RgbColor(50,50,50));
+		for (int i=0;i<nObjects;++i)
+		{
+			float v = ((float)i/(float)nObjects);
+			animatedObjects[i] = new Walker(v * PixelCount, 5, 0.02, 
+				colorGamma.Correct(GetJetColour(i, 0, nObjects-1, 100)));
+		}
 	}
 	
 	WiFiClient client = server.available();
