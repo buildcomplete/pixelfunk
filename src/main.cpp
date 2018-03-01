@@ -134,7 +134,7 @@ void cmdGetIP_cb(SerialCommands* sender)
 SerialCommand* _commands[] = 
 {
 	new SerialCommand("LEDF", cmdRgbFLed_cb),
-	new SerialCommand("LED", cmdRgbFLed_cb),
+	new SerialCommand("LED", cmdRgbLed_cb),
 	new SerialCommand("ALL", cmdRgbAllLed_cb),
 	new SerialCommand("ANIM", cmdSetAnimationstate_cb),
 	new SerialCommand("IP", cmdGetIP_cb),
@@ -190,20 +190,6 @@ void updateTimers()
     delta = time - currentTime;
     currentTime = time;
 }
-
-// create 4 walkers...
-//~ Walker mrBlue(0, 5, 0.166f, RgbColorF(0,0,1));
-//~ Walker mrGreen(1, 4, 0.100f, RgbColorF(0,1,0));
-//~ Walker mrRed(2, 6, 0.200f, RgbColorF(1,0,0));
-//~ Walker mrYellow(3, 10, 0.400f, RgbColorF(1,1,0));
-
-//~ AnimatedObject* animatedObjects[] 
-//~ {
-	//~ &mrBlue,
-	//~ &mrGreen,
-	//~ &mrRed,
-	//~ &mrYellow
-//~ };
 
 AnimatedObject** animatedObjects = NULL;
 const int nObjects = 50;
