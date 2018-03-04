@@ -3,7 +3,6 @@
 
 #include "SerialCommands.h"
 
-#include <NeoPixelBus.h>
 #include "AnimatedObject.h"
 #include "Walker.h"
 #include "PixelNoise.h"
@@ -15,12 +14,18 @@
 
 #include <RunningAverage.h>
 
-const uint16_t PixelCount = 512; 
+
+const uint8_t PanelWidth = 16;  // 16 pixel x 16 pixel matrix of leds
+const uint8_t PanelHeight = 16;
+const uint8_t TileWidth = 2;  // laid out in 2 panels x 2 panels mosaic
+const uint8_t TileHeight = 1;
+NeoMosaic <ColumnMajorAlternatingLayout> mosaic(PanelWidth, PanelHeight, TileWidth, TileHeight);
 
 // make sure to set this to the correct pins
 const uint8_t DotDataPin = 2;
-
+const uint16_t PixelCount = PanelWidth * PanelHeight * TileWidth * TileHeight;
 MyBus strip(PixelCount, DotDataPin);
+
 
 char serial_command_buffer_[32];
 SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_command_buffer_), "\r\n", " ");
@@ -227,28 +232,47 @@ void updateTimers()
 }
 
 AnimatedObject** animatedObjects = NULL;
-const int nObjects = 256;
+const int nObjects = 2;
 
 int updateVarDelay = 50;
 int varCount = 0;
 NeoGamma<NeoGammaEquationMethod> colorGamma;
 
+
+const uint16_t left = 0;
+const uint16_t right = PanelWidth * TileWidth - 1;
+const uint16_t top = 0;
+const uint16_t bottom = PanelHeight * TileHeight - 1;
+
+RgbColor red(128, 0, 0);
+RgbColor green(0, 128, 0);
+RgbColor blue(0, 0, 128);
+RgbColor white(128);
+
 void loop()
 {
 	if (animatedObjects == NULL)
 	{
-		
+
 		animatedObjects = new AnimatedObject*[nObjects];
-		//~ for (int i=0;i<nObjects; ++i)
-			//~ animatedObjects[i] = new PixelNoise(i, 0.2, RgbColor(50,50,50));
+		// for (int i=0;i<nObjects; ++i)
+		// 	animatedObjects[i] = new PixelNoise(i, 0.2, RgbColor(50,50,50));
 		for (int i=0;i<nObjects;++i)
 		{
 			float v = ((float)i/(float)nObjects);
-			animatedObjects[i] = new Walker(v * PixelCount, 5, 0.02, 
+			animatedObjects[i] = new Walker(v * PixelCount, 8, 0.02,
 				colorGamma.Correct(GetJetColour(i, 0, nObjects-1, 100)));
 		}
 	}
-	
+
+	// for (int x=0;x<32;++x)
+	// 	for (int y=0;y<16;++y)
+ 	strip.SetPixelColor(mosaic.Map(left, top), white);
+    strip.SetPixelColor(mosaic.Map(right, top), red);
+    strip.SetPixelColor(mosaic.Map(right, bottom), green);
+    strip.SetPixelColor(mosaic.Map(left, bottom), blue);
+
+
 	WiFiClient client = server.available();
 	if (client )
 	{
