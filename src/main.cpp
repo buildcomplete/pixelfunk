@@ -6,6 +6,9 @@
 #include "AnimatedObject.h"
 #include "Walker.h"
 #include "PixelNoise.h"
+#include "AnimatedSun.h"
+#include "AnimatedParticle.h"
+#include "colormaps.h"
 
 #include <ESP8266WiFi.h>
 #include <aREST.h>
@@ -19,7 +22,7 @@ const uint8_t PanelWidth = 16;  // 16 pixel x 16 pixel matrix of leds
 const uint8_t PanelHeight = 16;
 const uint8_t TileWidth = 2;  // laid out in 2 panels x 2 panels mosaic
 const uint8_t TileHeight = 1;
-NeoMosaic <ColumnMajorAlternatingLayout> mosaic(PanelWidth, PanelHeight, TileWidth, TileHeight);
+MyMosaic mosaic(PanelWidth, PanelHeight, TileWidth, TileHeight);
 
 // make sure to set this to the correct pins
 const uint8_t DotDataPin = 2;
@@ -34,40 +37,6 @@ bool runAnimation = true;
 aREST rest = aREST();
 #define LISTEN_PORT 80
 
-
-
-RgbColor GetJetColour(float v, float vmin, float vmax, float maxColor)
-{
-	if (v < vmin)
-		v = vmin;
-	if (v > vmax)
-		v = vmax;
-
-	double dv = vmax - vmin;
-
-	if (v < (vmin + 0.25 * dv))
-		return RgbColor(
-			0, 
-			(int)(maxColor * (4 * (v - vmin) / dv)),
-			(int)maxColor);
-
-	if (v < (vmin + 0.5 * dv))
-		return RgbColor(
-			0,
-			(int)maxColor,
-			(int)(maxColor * (1 + 4 * (vmin + 0.25 * dv - v) / dv)));
-
-	if (v < (vmin + 0.75 * dv))
-		return RgbColor(
-			(int)(maxColor * (4 * (v - vmin - 0.5 * dv) / dv)),
-			(int)maxColor,
-			0);
-	
-	return RgbColor(
-		(int)maxColor,
-		(int)(maxColor * (1 + 4 * (vmin + 0.75 * dv - v) / dv)),
-		0);
-}
 
 WiFiServer server(LISTEN_PORT);
 
@@ -232,7 +201,7 @@ void updateTimers()
 }
 
 AnimatedObject** animatedObjects = NULL;
-const int nObjects = 2;
+const int nObjects = 256;
 
 int updateVarDelay = 50;
 int varCount = 0;
@@ -259,19 +228,16 @@ void loop()
 		// 	animatedObjects[i] = new PixelNoise(i, 0.2, RgbColor(50,50,50));
 		for (int i=0;i<nObjects;++i)
 		{
-			float v = ((float)i/(float)nObjects);
-			animatedObjects[i] = new Walker(v * PixelCount, 8, 0.02,
-				colorGamma.Correct(GetJetColour(i, 0, nObjects-1, 100)));
+			float v = ((float)i/(float)max(nObjects-1,1));
+			animatedObjects[i] = new AnimatedParticle(16, 8,cos(v*3.14), sin(v*3.14), 0.03 + ((float)random(0, 20000) / 50000.0f) ,
+				colorGamma.Correct(GetJetColour(i, 0, nObjects-1, 100)), mosaic);
 		}
 	}
 
-	// for (int x=0;x<32;++x)
-	// 	for (int y=0;y<16;++y)
- 	strip.SetPixelColor(mosaic.Map(left, top), white);
-    strip.SetPixelColor(mosaic.Map(right, top), red);
-    strip.SetPixelColor(mosaic.Map(right, bottom), green);
-    strip.SetPixelColor(mosaic.Map(left, bottom), blue);
-
+// 	strip.SetPixelColor(mosaic.Map(left, top), white);
+// 	strip.SetPixelColor(mosaic.Map(right, top), red);
+// 	strip.SetPixelColor(mosaic.Map(right, bottom), green);
+// 	strip.SetPixelColor(mosaic.Map(left, bottom), blue);
 
 	WiFiClient client = server.available();
 	if (client )
@@ -282,7 +248,7 @@ void loop()
 		}
 		rest.handle(client);
 	}
-	
+
 	updateTimers();
 	myRA.addValue(delta);
 	if (varCount == updateVarDelay)
@@ -306,4 +272,4 @@ void loop()
 	}
 	serial_commands_.ReadSerial();
     strip.Show();
-}	
+}

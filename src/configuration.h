@@ -5,4 +5,4 @@
 
 // define type for the bus we are using
 using MyBus = NeoPixelBus<NeoBrgFeature, NeoEsp8266DmaWs2813Method>;
-
+using MyMosaic = NeoMosaic <ColumnMajorAlternatingLayout>;
