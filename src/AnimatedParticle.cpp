@@ -1,60 +1,57 @@
 #include "AnimatedParticle.h"
-RgbColor pblack(0,0,0);
-
 #include <Arduino.h>
 
-AnimatedParticle::AnimatedParticle(float ox, float oy, float dx, float dy, float speed, RgbColor baseColor, MyMosaic& mosaic)
+AnimatedParticle::AnimatedParticle(int id, float ox, float oy, float dx, float dy, float speed, RgbColor baseColor, MyMosaic& mosaic, int* map)
 {
+	_id = id;
 	_ox = ox;
 	_oy = oy;
 	
-	// normalize direction vector to have length one
+	// normalize direction vector to have length off speed
 	float c = sqrt(dx*dx+dy*dy);
 	
-	_dx = dx/c;
-	_dy = dy/c;
+	_dx = speed * dx/c;
+	_dy = speed * dy/c;
 	_speed = speed;
-	_accumulatedTime = 0;
 	_color = baseColor;
 	_mosaic = &mosaic;
+	_map = map;
+	
 }
 
 void AnimatedParticle::Update(float dt, int lim, MyBus& strip)
 {
-	_accumulatedTime += dt;
-	int steps = _accumulatedTime / _speed;
-	if (steps > 0)
+	_ox += _dx * dt;
+	_oy += _dy * dt;
+	if (QPos() != _lastDrawPos)
 	{
-		strip.SetPixelColor(QPos(), pblack);
-		_ox += _dx * steps;
-		_oy += _dy;
-		
-		// bounce
+		// If we where the last guy comming here, set the color to black when leaving, otherwise do nothing.
+		if (_map[_lastDrawPos] == _id)
+			strip.SetPixelColor(_lastDrawPos, RgbColor(0));
+
+		// wrap
 		if (_ox >= _mosaic->getWidth())
 		{
-			_dx = -_dx;
-			_ox = _mosaic->getWidth() - 2;
+			_ox = 0;
 		}
 		if (_oy >= _mosaic->getHeight())
 		{
-			_dy = -_dy;
-			_oy = _mosaic->getHeight() - 2;
+			_oy = 0;
 		}
 		
 		if (_ox < 0)
 		{
-			_dx = -_dx;
-			_ox = 0;
+			_ox = _mosaic->getWidth()-1;
 		}
 		if (_oy < 0)
 		{
-			_dy = -_dy;
-			_oy = 0;
+			_oy = _mosaic->getHeight()-1;
 		}
 		
-		
-		_accumulatedTime -= _speed * ((float)steps);
+		// sample color already in field to 
 		strip.SetPixelColor(QPos(), _color);
+		_lastDrawPos = QPos();
+		_map[_lastDrawPos] = _id;
 	}
 }
 

@@ -200,8 +200,10 @@ void updateTimers()
     currentTime = time;
 }
 
-AnimatedObject** animatedObjects = NULL;
 const int nObjects = 256;
+AnimatedObject** animatedObjects = NULL;
+int animatedObjectIndexMap[PixelCount];
+
 
 int updateVarDelay = 50;
 int varCount = 0;
@@ -218,19 +220,21 @@ RgbColor green(0, 128, 0);
 RgbColor blue(0, 0, 128);
 RgbColor white(128);
 
+
 void loop()
 {
 	if (animatedObjects == NULL)
 	{
-
 		animatedObjects = new AnimatedObject*[nObjects];
+		
 		// for (int i=0;i<nObjects; ++i)
 		// 	animatedObjects[i] = new PixelNoise(i, 0.2, RgbColor(50,50,50));
 		for (int i=0;i<nObjects;++i)
 		{
+			animatedObjectIndexMap[i]=0;
 			float v = ((float)i/(float)max(nObjects-1,1));
-			animatedObjects[i] = new AnimatedParticle(16, 8,cos(v*3.14), sin(v*3.14), 0.03 + ((float)random(0, 20000) / 50000.0f) ,
-				colorGamma.Correct(GetJetColour(i, 0, nObjects-1, 100)), mosaic);
+			animatedObjects[i] = new AnimatedParticle(i, 16, 8,cos(v*6.28), sin(v*6.28), 1.0 + ((float)random(0, 50000) / 50000.0f) ,
+				colorGamma.Correct(GetJetColour(i, 0, nObjects-1, 100)), mosaic, animatedObjectIndexMap);
 		}
 	}
 
