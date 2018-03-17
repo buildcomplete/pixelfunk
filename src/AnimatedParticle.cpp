@@ -1,7 +1,7 @@
 #include "AnimatedParticle.h"
 #include <Arduino.h>
 
-AnimatedParticle::AnimatedParticle(int id, float ox, float oy, float dx, float dy, float speed, RgbColor baseColor, MyMosaic& mosaic, int* map)
+AnimatedParticle::AnimatedParticle(uint16_t id, float ox, float oy, float dx, float dy, float speed, RgbColor baseColor, MyMosaic& mosaic, uint16_t* map)
 {
 	_id = id;
 	_ox = ox;

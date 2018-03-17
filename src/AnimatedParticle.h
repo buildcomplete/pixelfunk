@@ -5,10 +5,10 @@
 class AnimatedParticle : public AnimatedObject
 {
 public:
-	AnimatedParticle(int id, float ox, float oy, float dx, float dy, float speed, RgbColor baseColor, MyMosaic& mosaic, int* particleRegisterMap);
+	AnimatedParticle(uint16_t id, float ox, float oy, float dx, float dy, float speed, RgbColor baseColor, MyMosaic& mosaic, uint16_t* particleRegisterMap);
 	void Update(float dt, int lim, MyBus& strip);
 private:
-	int _id;
+	uint16_t _id;
 	float _ox;
 	float _oy;
 	float _dx;
@@ -18,5 +18,5 @@ private:
 	MyMosaic* _mosaic;
 	int QPos();
 	int _lastDrawPos = -1;
-	int* _map;
+	uint16_t* _map;
 };
