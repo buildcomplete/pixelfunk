@@ -21,7 +21,7 @@
 const uint8_t PanelWidth = 16;  // 16 pixel x 16 pixel matrix of leds
 const uint8_t PanelHeight = 16;
 const uint8_t TileWidth = 2;  // laid out in 2 panels x 2 panels mosaic
-const uint8_t TileHeight = 1;
+const uint8_t TileHeight = 2;
 MyMosaic mosaic(PanelWidth, PanelHeight, TileWidth, TileHeight);
 
 // make sure to set this to the correct pins
@@ -200,7 +200,7 @@ void updateTimers()
     currentTime = time;
 }
 
-const int nObjects = 256;
+const int nObjects = 256+128;
 AnimatedObject** animatedObjects = NULL;
 int animatedObjectIndexMap[PixelCount];
 
@@ -229,13 +229,18 @@ void loop()
 		
 		// for (int i=0;i<nObjects; ++i)
 		// 	animatedObjects[i] = new PixelNoise(i, 0.2, RgbColor(50,50,50));
-		for (int i=0;i<nObjects;++i)
+		for (int i=0;i<nObjects-2;++i)
 		{
 			animatedObjectIndexMap[i]=0;
 			float v = ((float)i/(float)max(nObjects-1,1));
-			animatedObjects[i] = new AnimatedParticle(i, 16, 8,cos(v*6.28), sin(v*6.28), 1.0 + ((float)random(0, 50000) / 50000.0f) ,
+			animatedObjects[i] = new AnimatedParticle(i, 15, 15,cos(v*6.28), sin(v*6.28), 1.0 + ((float)random(0, 50000) / 50000.0f) ,
 				colorGamma.Correct(GetJetColour(i, 0, nObjects-1, 100)), mosaic, animatedObjectIndexMap);
 		}
+		animatedObjects[nObjects-2] = new AnimatedParticle(nObjects, 15, 15,1, 0, 1.0 + ((float)random(0, 50000) / 50000.0f) ,
+				colorGamma.Correct(RgbColor(255,255,255)), mosaic, animatedObjectIndexMap);
+		
+		animatedObjects[nObjects-1]= new Walker(0,5,0.2, 
+			colorGamma.Correct(RgbColor(128,128,0)));
 	}
 
 // 	strip.SetPixelColor(mosaic.Map(left, top), white);
